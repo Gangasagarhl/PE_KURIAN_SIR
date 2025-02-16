@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Video Streaming</title>
+    <style>
+        .stop-btn {
+            background-color: red;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .stop-btn:hover {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Video Streaming</h1>
+    <!-- The image below will display frames from /video_feed -->
+    <img src="{{ url_for('video_feed') }}" width="640" height="480" />
+    <br><br>
+    <!-- Button to stop the streaming -->
+    <button class="stop-btn" onclick="stopStreaming()">Stop Streaming</button>
+
+    <script>
+        function stopStreaming() {
+            // Send a POST request to stop streaming.
+            fetch("/stop_stream", { method: "POST" })
+            .then(response => response.text())
+            .then(data => {
+                alert(data);
+                // Optionally, reload the page or take other actions.
+                location.reload();
+            });
+        }
+    </script>
+</body>
+</html>

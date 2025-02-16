@@ -1,0 +1,8 @@
+Raspberry pi: 
+    a. open camera and  keep capturing what is happening near by for every 15 seconds. 
+    b. send the timestamp and descrption to the server. 
+    c. Suppose a gun or leopard is seen, then live video stream starts, for 2 minutes.
+IITB SERVER
+    a. store the time stamp and as well as description into the csv file
+    b. csv handler will make the decription to store in csv database
+    c. This CSV is used later to make RAG, daily summary RAG application etc. 
