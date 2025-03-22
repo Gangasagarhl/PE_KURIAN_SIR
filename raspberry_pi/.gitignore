@@ -4,3 +4,4 @@ model/
 1.mp4
 2.mp4
 captured_images/
+__pycache__/
