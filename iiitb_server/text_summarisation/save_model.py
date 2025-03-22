@@ -1,10 +1,10 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 # Define Local Path to Store Model
-local_model_path = "./local_models/t5-base"
+local_model_path = "./local_models/T5-3B"
 
 # Load Pretrained Model and Tokenizer from Hugging Face
-model_name = "t5-base"
+model_name = "T5-3B"
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
 

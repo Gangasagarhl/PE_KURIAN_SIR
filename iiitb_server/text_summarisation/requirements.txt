@@ -1,0 +1,13 @@
+python-dotenv
+openai
+langchain_groq
+langchain_openai
+langchain_core
+fastapi
+flask
+opencv-python
+aiortc
+aiohttp
+sentencepiece
+langchain-community
+langchain-huggingface

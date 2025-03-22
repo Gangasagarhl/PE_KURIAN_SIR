@@ -1,0 +1,4 @@
+The list of object names are taken from the user end. 
+Based on which it will check whether there is dataset or not. 
+if dataset is available that will be utilised , or it has to downlod nearly 300 images from google. 
+Later this to be finetuned on the model, later that model along woth the statistics to be kept at the raspberry pi end, which will be sent from server to tester end. 

@@ -1,77 +1,71 @@
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain.chains.summarize import load_summarize_chain
-from langchain.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
-from transformers import pipeline
-from load_model import model_load
+from langchain.llms.ollama import Ollama  # Import the Ollama LLM wrapper
+from text_processing_from_llm import format_text
 
-class generate_summary:
-    # Load the model and tokenizer using your load_model utility.
-    model_ = model_load()
-    tokenizer, model = model_.model_load()
-    
-    # Create the HuggingFace pipeline for text2text generation.
-    summarization_pipeline = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-    
-    # Wrap the pipeline with LangChain's HuggingFacePipeline.
-    llm = HuggingFacePipeline(pipeline=summarization_pipeline)
-
+class GenerateSummary:
     @staticmethod
-    def split_text(text, chunk_size=450, overlap=50):
+    def refine_summarization(chunks):
         """
-        Split the text into chunks using LangChain's RecursiveCharacterTextSplitter.
+        Generate a summary for the input text using the Refine approach,
+        ensuring that the final summary has between 350 to 400 words using
+        the Ollama llama3.2:1b model.
         """
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-        return text_splitter.split_text(text)
-
-    @staticmethod
-    def refine_summarization(text):
-        """
-        Generate a summary for the input text that is between 400 and 450 words.
-        This is done by splitting the text into chunks and then running a refine summarization chain
-        with custom prompt templates that instruct the model to produce a summary with the desired word count.
-        """
-        # Step 1: Split the input text into smaller chunks.
-        chunks = generate_summary.split_text(text)
+        # Initialize the Ollama LLM with the llama3.2:1b model.
+        llm = Ollama(model="llama3.2")
+        
+        # Convert text chunks into LangChain documents.
         documents = [Document(page_content=chunk) for chunk in chunks]
-
-
-        # Step 2: Create custom prompt templates with explicit instructions on the summary length.
+        
+        # Define custom prompt templates for the refine chain.
         initial_prompt_template = (
-            "Write a comprehensive summary of the following text. "
-            "The summary must be at least 400 words and no more than 450 words. "
-            "Ensure all key points are covered.\n\n"
-            "Text:\n{text}"
+            "You are an AI assistant tasked with summarizing events captured over a 12-hour period. "
+            "Every 10 seconds, a new textual description of the scene has been recorded, forming a detailed sequence of observations. "
+            "Your goal is to analyze this sequence and generate a concise summary as if you were an observer present for the entire 12 hours. "
+            "The summary should highlight key events, notable patterns, and any significant occurrences, ensuring clarity and coherence. "
+            "\n\n"
+            "**Text Data:**\n{text}\n\n"
+            "**Generate a well-structured summary based on the above observations.**"
+        )
+
+        refine_prompt_template = (
+            "You are an AI assistant tasked with refining and expanding an existing summary based on newly received observations. "
+            "Your goal is to seamlessly integrate the additional details into the summary while maintaining coherence, clarity, and a well-structured flow. \n\n"
+            
+            
+            "**Existing Summary:**\n{existing_answer}\n\n"
+            
+            "**Additional Observations:**\n{text}\n\n"
+            
+            "**Task:** If the new observations provide meaningful updates, refine the summary accordingly. "
+            "If the additional text does not contribute significantly, return the existing summary unchanged."
+        )
+
+        # Create PromptTemplate objects.
+        initial_prompt = PromptTemplate(template=initial_prompt_template, input_variables=["text"])
+        refine_prompt = PromptTemplate(template=refine_prompt_template, input_variables=["existing_answer", "text"])
+        
+        # Load the Refine summarization chain with the Ollama LLM.
+        chain = load_summarize_chain(
+            llm,
+            chain_type="refine",
+            question_prompt=initial_prompt,  # Used for initial summarization
+            refine_prompt=refine_prompt      # Used to refine the summary with subsequent chunks
         )
         
-        refine_prompt_template = (
-            "You are given an existing summary:\n{existing_summary}\n\n"
-            "Refine the summary using the additional context below. "
-            "The final summary must be between 400 and 450 words and include all important points from the context.\n\n"
-            "Additional Context:\n{text}\n\n"
-            "Refined Summary:"
-        )
+        # Run the chain to generate the final summary.
+        final_summary = chain.invoke({"input_documents": documents})
+        
+        text = format_text(final_summary['output_text'])
 
-        initial_prompt = PromptTemplate(
-            template=initial_prompt_template,
-            input_variables=["text"]
-        )
-        refine_prompt = PromptTemplate(
-            template=refine_prompt_template,
-            input_variables=["existing_summary", "text"]
-        )
+        # Save the final summary to a file.
+        with open('summary.txt', 'w', encoding='utf-8') as f:
+            f.write(text)
+            
+        return text
 
-        # Step 3: Load the refinement summarization chain with the custom prompts.
-        chain = load_summarize_chain(
-            generate_summary.llm,
-            chain_type="refine",
-            question_prompt=initial_prompt,
-            refine_prompt=refine_prompt
-        )
-
-        # Step 4: Run the chain on the documents to get the refined summary.
-        refined_summary = chain.run(documents)
-        return refined_summary
-
-
+# Example usage:
+# chunks = ["Text chunk 1", "Text chunk 2", ...]  # List of text chunks.
+# summary = GenerateSummary.refine_summarization(chunks)
+# print(summary)

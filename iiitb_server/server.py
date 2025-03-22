@@ -2,17 +2,65 @@ from flask import Flask, request, jsonify, Response, render_template_string
 import numpy as np
 import cv2
 import time
-from csv_handler import init_csv, append_to_csv
-from live_session import LiveSession
+import threading
+from datetime import datetime
+import csv
+import os
 
 app = Flask(__name__)
-init_csv()  # Ensure CSV file exists
 
-# Global live session instance
+# --- LiveSession Implementation ---
+class LiveSession:
+    def __init__(self):
+        self.active = False
+        self.start_time = None
+        self.latest_frame = None
+        self.video_writer = None
+        self.last_record_time = None
+        self.recording_lock = threading.Lock()
+
+    def start(self, frame):
+        with self.recording_lock:
+            self.active = True
+            self.start_time = time.time()
+            self.latest_frame = frame
+            self.last_record_time = time.time()
+            h, w, _ = frame.shape
+            filename = datetime.now().strftime("live_%Y%m%d_%H%M%S.avi")
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            self.video_writer = cv2.VideoWriter(filename, fourcc, 10, (w, h))
+            print(f"Live session started. Saving video to {filename}")
+
+    def update(self, frame):
+        with self.recording_lock:
+            self.latest_frame = frame
+            current_time = time.time()
+            # Write frame if at least 1/10 sec has passed.
+            if current_time - self.last_record_time >= 0.1:
+                if self.video_writer is not None:
+                    self.video_writer.write(frame)
+                self.last_record_time = current_time
+            # Automatically end session after 5 minutes.
+            if current_time - self.start_time > 300:
+                self.end()
+
+    def get_latest_frame(self):
+        with self.recording_lock:
+            return self.latest_frame
+
+    def end(self):
+        with self.recording_lock:
+            self.active = False
+            if self.video_writer is not None:
+                self.video_writer.release()
+                self.video_writer = None
+            print("Live session ended and video saved.")
+
+# Global live session instance.
 live_session = LiveSession()
 
-
-
+"""
+# --- Endpoints ---
 @app.route('/upload', methods=['POST'])
 def upload_data():
     data = request.get_json()
@@ -25,12 +73,47 @@ def upload_data():
         return jsonify({"status": "error", "message": "Missing timestamp or description"}), 400
 
     print(f"[Upload] Received: {timestamp} - {description}")
-    try:
-        append_to_csv(timestamp, description)
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    # (Assume CSV logging is handled elsewhere.)
+    return jsonify({"status": "success", "message": "Data received"}), 200"
+"""
 
-    return jsonify({"status": "success", "message": "Data received"}), 200
+
+
+CSV_FILE = "database/data.csv"
+
+# Ensure CSV file and directory exist
+def initialize_csv():
+    os.makedirs(os.path.dirname(CSV_FILE), exist_ok=True)  # Ensure directory exists
+    file_exists = os.path.exists(CSV_FILE)
+
+    if not file_exists:
+        with open(CSV_FILE, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(["timestamp", "description"])  # Write header only if file is new
+
+initialize_csv()
+
+@app.route("/upload", methods=["POST"])
+def upload_data():
+    data = request.get_json()
+    
+    if not data or "timestamp" not in data or "description" not in data:
+        return jsonify({"status": "error", "message": "Missing required fields"}), 400
+
+    timestamp = data["timestamp"]
+    description = data["description"]
+
+    print(f"[Upload] Received: {timestamp} - {description}")
+    
+    # Append data to CSV file
+    with open(CSV_FILE, "a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([timestamp, description])
+    
+    return jsonify({"status": "success", "message": "Data received and saved"}), 200
+
+
+
 
 
 
@@ -53,15 +136,9 @@ def live_video():
     live_session.update(frame)
     return jsonify({"status": "success", "message": "Frame received"}), 200
 
-
-
 @app.route('/stream_control', methods=['GET'])
 def stream_control():
-    """Return whether live streaming is active."""
     return jsonify({"active": live_session.active})
-
-
-
 
 @app.route('/stop_stream', methods=['POST'])
 def stop_stream():
@@ -70,15 +147,8 @@ def stop_stream():
         return jsonify({"status": "success", "message": "Live streaming stopped"}), 200
     return jsonify({"status": "error", "message": "No active live session"}), 400
 
-
-
-
-
-
-
 @app.route('/control', methods=['GET'])
 def control_page():
-    """A simple control page with the live feed and a Stop button."""
     return render_template_string('''
         <html>
         <head>
@@ -94,37 +164,34 @@ def control_page():
         </html>
     ''')
 
-
-
-
-
 def generate_frames():
-    """Generator that yields MJPEG frames for the video feed."""
+    last_yield_time = 0
     while True:
         if live_session.active and live_session.get_latest_frame() is not None:
-            frame = live_session.get_latest_frame()
-            ret, buffer = cv2.imencode('.jpg', frame)
+            current_time = time.time()
+            # Stream one frame every 5 seconds.
+            if current_time - last_yield_time >= 5:
+                last_yield_time = current_time
+                frame = live_session.get_latest_frame()
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if ret:
+                    frame_bytes = buffer.tobytes()
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        else:
+            # If no active live session, yield a blank frame.
+            blank_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            ret, buffer = cv2.imencode('.jpg', blank_frame)
             if ret:
                 frame_bytes = buffer.tobytes()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        else:
-            # Yield a blank frame if no active live session
-            blank_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            ret, buffer = cv2.imencode('.jpg', blank_frame)
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        time.sleep(0.03)
-
-
-
-
-
+            time.sleep(5)
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
