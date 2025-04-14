@@ -3,15 +3,18 @@ import time
 import threading
 from datetime import datetime
 import requests
-from image_descriptor import description  # BLIP model for image captioning
-from whatsapp_alert import send_whatsapp_alert
-from model_inference import Inference
+#from image_descriptor import description  # BLIP model for image captioning
+from models_inferences.keras_model_inference import  predict_image
 from video_record_send_to_mail.index import execute_record
+from send_emergency_video_to_sever_for_further_analysis.send_video_to_server import PassVideo
+from datetime import datetime
 
-inference=Inference()#This is used for continous monitoring of the data frames using mobilenet model
 
 # API Endpoints – adjust the host/port as needed.
-IMAGE_UPLOAD_URL = "http://127.0.0.1:5000/upload"
+
+ROOT = "http://127.0.0.1:5000"
+IMAGE_UPLOAD_URL = ROOT+"/upload_photo"
+VIDEO_UPLOAD_URL = ROOT+"/upload_video"
 
 
 # Global variables for live streaming mode
@@ -20,17 +23,8 @@ live_streaming_start_time = None
 last_stream_sent_time = 0
 stream_fps_interval = 0.1  # for ~10 fps streaming to the server
 
-def send_frame_to_server(frame):
-    try:
-        _, buffer = cv2.imencode('.jpg', frame)
-        files = {'frame': ('frame.jpg', buffer.tobytes(), 'image/jpeg')}
-        # Use a short timeout so sending does not block the main loop.
-        requests.post(LIVE_VIDEO_URL, files=files, timeout=1)
-    except Exception as e:
-        print("Error sending live stream frame:", e)
 
-
-
+#this is used to send the descirtion to server
 def inference_worker(frame, timestamp):
     global live_streaming_mode, live_streaming_start_time
     start_time = datetime.now()
@@ -66,66 +60,7 @@ def inference_worker(frame, timestamp):
             
         '''
 
-def capture_from_video(video_path):
-    global live_streaming_mode, live_streaming_start_time, last_stream_sent_time
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print("Error: Could not open video file.")
-        return
 
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if fps <= 0:
-        fps = 25
-    delay = int(1000 / fps)
-
-    capture_interval = 10  # seconds: capture frame for inference every 15 sec.
-    last_capture_time = time.time()
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Show video normally.
-        cv2.imshow("Video Feed", frame)
-        current_time = time.time()
-
-        # Trigger asynchronous inference every 15 seconds.
-        if current_time - last_capture_time >= capture_interval:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            threading.Thread(target=inference_worker, args=(frame.copy(), timestamp)).start()
-            last_capture_time = current_time
-
-        # If live streaming mode is active, send frames to the server at ~10 fps.
-        if live_streaming_mode:
-            if current_time - live_streaming_start_time > 300:  # 5 minutes = 300 sec.
-                live_streaming_mode = False
-                print("Live streaming mode deactivated after 5 minutes.")
-            else:
-                if current_time - last_stream_sent_time >= stream_fps_interval:
-                    send_frame_to_server(frame)
-                    last_stream_sent_time = current_time
-
-        if cv2.waitKey(delay) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import time
 
 def capture_from_camera():
     global live_streaming_mode, live_streaming_start_time, last_stream_sent_time
@@ -135,7 +70,7 @@ def capture_from_camera():
         print("Error: Could not open camera.")
         return
 
-    capture_interval = 10
+    capture_interval = 15
     last_capture_time = time.time()
     
     # Parameters for recording
@@ -157,25 +92,32 @@ def capture_from_camera():
 
         if not recording:
             # Only perform inference if not currently recording
-            inference_result = inference.inference(frame)  # Perform model inference
+            inference_result = predict_image(frame)  # Perform model inference
 
-            if inference_result == "record":
-                print("Recording started for 10 seconds...")
+            if inference_result == "BOTTLE":
+                current_time = datetime.now()
+                video_name =  f"recording_{current_time}.avi"
+
+                print("Recording started for 15 seconds...")
                 recording = True
                 record_start_time = current_time
                 # Set up the video writer
                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-                out = cv2.VideoWriter("video_record_send_to_mail/recording.avi", fourcc, fps, (frame_width, frame_height))
+                out = cv2.VideoWriter(f"send_emergency_video_to_sever_for_further_analysis/{video_name}", fourcc, fps, (frame_width, frame_height))
+
         else:
             # While recording, just write the frames without doing inference
             out.write(frame)
-            # Check if 10 seconds have passed since recording started
-            if current_time - record_start_time >= 10:
+            # Check if 15 seconds have passed since recording started
+            if current_time - record_start_time >= capture_interval:
                 print("Recording stopped.")
                 recording = False
                 out.release()
+
+                #this to be changed
                 # Launch a thread to process/send the recorded video
-                t1 = threading.Thread(target=execute_record, args=("hlgsagar.2@gmail.com",))
+                passvideo  = PassVideo( url= VIDEO_UPLOAD_URL, video_path = f"{video_name}", video_id="hlgsagar1")
+                t1 = threading.Thread(target=passvideo.send)
                 t1.start()
                 
                 # Optionally, update last_capture_time if you want to avoid immediate inference_worker trigger
@@ -183,7 +125,8 @@ def capture_from_camera():
         # Continue with periodic processing only if not recording
         if not recording and current_time - last_capture_time >= capture_interval:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            threading.Thread(target=inference_worker, args=(frame.copy(), timestamp)).start()
+            t2=threading.Thread(target=inference_worker, args=(frame.copy(), timestamp)).start()
+            t2.start()
             last_capture_time = current_time
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -193,20 +136,6 @@ def capture_from_camera():
     cv2.destroyAllWindows()
 
     
-
-
-
-
-
-def main():
-    choice = input("Choose source: (1) Video file (2) Live Camera: ").strip()
-    if choice == "1":
-        video_path = input("Enter video file path: ").strip()
-        capture_from_video(video_path)
-    elif choice == "2":
-        capture_from_camera()
-    else:
-        print("Invalid choice. Exiting.")
-
+   
 if __name__ == "__main__":
-    main()
+    capture_from_camera()

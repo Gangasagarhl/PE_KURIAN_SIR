@@ -6,76 +6,47 @@ import threading
 from datetime import datetime
 import csv
 import os
-
+from transformers import BlipProcessor, BlipForConditionalGeneration,T5Tokenizer, T5ForConditionalGeneration
+from analysis.donwload_video_from_client import video_photo_analyzer
+from extreme_emergency_alerts import alert_neighbours
 app = Flask(__name__)
 
-# --- LiveSession Implementation ---
-class LiveSession:
+
+class blip_load:
     def __init__(self):
-        self.active = False
-        self.start_time = None
-        self.latest_frame = None
-        self.video_writer = None
-        self.last_record_time = None
-        self.recording_lock = threading.Lock()
+        self.loaded = False  # Flag to track loading status
+        print("⏳ Loading BLIP model...")
 
-    def start(self, frame):
-        with self.recording_lock:
-            self.active = True
-            self.start_time = time.time()
-            self.latest_frame = frame
-            self.last_record_time = time.time()
-            h, w, _ = frame.shape
-            filename = datetime.now().strftime("live_%Y%m%d_%H%M%S.avi")
-            fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            self.video_writer = cv2.VideoWriter(filename, fourcc, 10, (w, h))
-            print(f"Live session started. Saving video to {filename}")
+        model_name = "Salesforce/blip-image-captioning-base"
+        self.processor = BlipProcessor.from_pretrained(model_name)
+        self.model = BlipForConditionalGeneration.from_pretrained(model_name)
 
-    def update(self, frame):
-        with self.recording_lock:
-            self.latest_frame = frame
-            current_time = time.time()
-            # Write frame if at least 1/10 sec has passed.
-            if current_time - self.last_record_time >= 0.1:
-                if self.video_writer is not None:
-                    self.video_writer.write(frame)
-                self.last_record_time = current_time
-            # Automatically end session after 5 minutes.
-            if current_time - self.start_time > 300:
-                self.end()
+        self.loaded = True
+        print("\n✅✅✅ BLIP MODEL LOADED SUCCESSFULLY ✅✅✅\n")
 
-    def get_latest_frame(self):
-        with self.recording_lock:
-            return self.latest_frame
+    def is_ready(self):
+        return self.model,self.processor
+    
 
-    def end(self):
-        with self.recording_lock:
-            self.active = False
-            if self.video_writer is not None:
-                self.video_writer.release()
-                self.video_writer = None
-            print("Live session ended and video saved.")
+class t5_load:
+    def __init__(self):
+        model_name = "t5-base"
+        self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+        self.model = T5ForConditionalGeneration.from_pretrained(model_name)
+        print("\n\n*********T5 MODEL DOWNLOADED*********\n\n")
+        
+        self.loaded = True
+        print("\n✅✅✅ t5 MODEL LOADED SUCCESSFULLY ✅✅✅\n")
 
-# Global live session instance.
-live_session = LiveSession()
+    def is_ready(self):
+        return self.model, self.tokenizer
 
-"""
-# --- Endpoints ---
-@app.route('/upload', methods=['POST'])
-def upload_data():
-    data = request.get_json()
-    if not data:
-        return jsonify({"status": "error", "message": "No JSON data received"}), 400
 
-    timestamp = data.get("timestamp")
-    description = data.get("description")
-    if not timestamp or not description:
-        return jsonify({"status": "error", "message": "Missing timestamp or description"}), 400
+blip = blip_load()
+t5 =t5_load()
 
-    print(f"[Upload] Received: {timestamp} - {description}")
-    # (Assume CSV logging is handled elsewhere.)
-    return jsonify({"status": "success", "message": "Data received"}), 200"
-"""
+blip_model,blip_processor =  blip.is_ready()
+t5_model,t5_tokenizer =  t5.is_ready()
 
 
 
@@ -113,85 +84,12 @@ def upload_data():
     return jsonify({"status": "success", "message": "Data received and saved"}), 200
 
 
+#this uploads video here and based on this, further analysis will be done
+va = video_photo_analyzer(blip_model, blip_processor, t5_model, t5_tokenizer )
+app.add_url_rule('/upload_video', view_func=va.upload_video, methods=['POST'])
+app.add_url_rule('/upload_photo', view_func=va.upload_photo, methods=['POST'])
 
-
-
-
-
-
-
-@app.route('/live_video', methods=['POST'])
-def live_video():
-    if 'frame' not in request.files:
-        return jsonify({"status": "error", "message": "No frame received"}), 400
-
-    frame_data = request.files['frame'].read()
-    np_arr = np.frombuffer(frame_data, np.uint8)
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    if frame is None:
-        return jsonify({"status": "error", "message": "Failed to decode frame"}), 400
-
-    if not live_session.active:
-        live_session.start(frame)
-    live_session.update(frame)
-    return jsonify({"status": "success", "message": "Frame received"}), 200
-
-@app.route('/stream_control', methods=['GET'])
-def stream_control():
-    return jsonify({"active": live_session.active})
-
-@app.route('/stop_stream', methods=['POST'])
-def stop_stream():
-    if live_session.active:
-        live_session.end()
-        return jsonify({"status": "success", "message": "Live streaming stopped"}), 200
-    return jsonify({"status": "error", "message": "No active live session"}), 400
-
-@app.route('/control', methods=['GET'])
-def control_page():
-    return render_template_string('''
-        <html>
-        <head>
-            <title>Live Stream Control</title>
-        </head>
-        <body>
-            <h1>Live Stream</h1>
-            <img src="{{ url_for('video_feed') }}" width="640" height="480">
-            <form action="{{ url_for('stop_stream') }}" method="post">
-                <button type="submit">Stop Live Streaming</button>
-            </form>
-        </body>
-        </html>
-    ''')
-
-def generate_frames():
-    last_yield_time = 0
-    while True:
-        if live_session.active and live_session.get_latest_frame() is not None:
-            current_time = time.time()
-            # Stream one frame every 5 seconds.
-            if current_time - last_yield_time >= 5:
-                last_yield_time = current_time
-                frame = live_session.get_latest_frame()
-                ret, buffer = cv2.imencode('.jpg', frame)
-                if ret:
-                    frame_bytes = buffer.tobytes()
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        else:
-            # If no active live session, yield a blank frame.
-            blank_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            ret, buffer = cv2.imencode('.jpg', blank_frame)
-            if ret:
-                frame_bytes = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            time.sleep(5)
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+app.add_url_rule('/emergency_alert_neighbours',view_func =  emergency_alert,methods=['POST'])
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

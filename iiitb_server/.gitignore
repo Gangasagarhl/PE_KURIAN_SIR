@@ -1,3 +1,6 @@
 t5-base_model/
 ./database/
-__pycache__/
+__pycache__
+blip_model/
+myenv/
+database/

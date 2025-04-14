@@ -1,0 +1,1 @@
+print("\nIn emergency detection\n\n")

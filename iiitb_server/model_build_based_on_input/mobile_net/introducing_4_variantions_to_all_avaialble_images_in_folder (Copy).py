@@ -127,8 +127,8 @@ class image_preperation:
 if __name__ ==  "__main__":
     
     image  =  image_preperation()
-    #image.apply_transformation_for_every_image("downloaded_images", 'NO')
-    image.move_folder("downloaded_images/NO", "database")
+    image.apply_transformation_for_every_image("downloaded_images", 'GOD')
+    #image.move_folder("downloaded_images/BOTTLE", "database")
     
 
 
