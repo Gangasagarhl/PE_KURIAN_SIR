@@ -1,5 +1,5 @@
 from send_notifications_mails.send_gmail_to_reciepient import gmail
-from send_notifications_mails import send_whatsapp_alerts
+from send_notifications_mails.send_whatsapp_alerts import  send_whatsapp_alert
 import requests
 from datetime import datetime
 import threading
@@ -11,11 +11,13 @@ class alert_neighbours:
         print("alert neighbours is initiated\n")
 
     def extract_emails(self, id):
-        df = pd.read_csv('../database/email.csv')
+        print("extract emails\n")
+        df = pd.read_csv('database/email.csv')
         return df[df['id'] == id]['email'].tolist()
 
     def extract_numbers(self, id):
-        df = pd.read_csv('../database/phone_numbers.csv')
+        print("extract numbers\n")
+        df = pd.read_csv('database/phone_numbers.csv')
         return df[df['id'] == id]['phone'].tolist()
 
     def extract_the_neighbours_info_from_database(self, id):
@@ -24,14 +26,15 @@ class alert_neighbours:
         return emails, phone
 
     def truly_alert(self):
-        # Generate a formatted timestamp if needed
+        id = requests.data['id']
         now = datetime.now().strftime("%Y%m%d%H%M%S")
-        id = "sag1" 
+        #id = "sag1" 
         print(id) # You might consider renaming this variable (e.g., alert_id) to avoid shadowing built-in id()
-        address = "Visveswaraya@iiitb"
+        address = requests.data['address']
+        video = requests.files['video']
         print(address)
-        video_name = "1.mp4"  # Or: f"{id}_{now}.mp4"
-        print(video_name)
+        video_name = str(now)+"_"+str(id) # Or: f"{id}_{now}.mp4"
+        video.save(video_name)
 
         
         # Correct thread instantiation: use keyword 'target' and proper args tuple
@@ -46,14 +49,16 @@ class alert_neighbours:
             # Create a new gmail object for each email and call its send_video_and_summary method
             t = threading.Thread(
                 target=gmail(reciver_email=email, address=address).send_video_and_summary,
-                args=(f"../extreme_emergency_alerts/{video_name}",)  # Note the trailing comma
+                args=(f"extreme_emergency_alerts/{video_name}",)  # Note the trailing comma
             )
             t.start()
+        print("alerting through mail\n")
 
     def alerting_all_through_whatsapp(self, phone_numbers):
         for phone in phone_numbers:
+            print()
             t = threading.Thread(
-                target=send_whatsapp_alerts,
+                target=send_whatsapp_alert,
                 args=(phone,)
             )
             t.start()
@@ -92,6 +97,6 @@ if __name__ == "__main__":
     checking()
     
     # Test the alert_neighbours functionality
-    from extreme_emergency_alerts.alert_neighbours import alert_neighbours
-    obj = alert_neighbours()
-    print(obj.truly_alert())
+    #from extreme_emergency_alerts.alert_neighbours import alert_neighbours
+    #obj = alert_neighbours()
+    #print(obj.truly_alert())

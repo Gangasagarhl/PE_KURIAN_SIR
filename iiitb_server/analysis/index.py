@@ -31,7 +31,7 @@ class make_it:
 
         summary =  self.generate_summary()
         gmailing.send_video_and_summary(video_path=self.video, summary=summary)
-        #send_whatsapp_alerts.send_whatsapp_alert(to_number=self.phone_number)
+        send_whatsapp_alert(to_number=self.phone_number)
         os.remove (self.video)
 
 

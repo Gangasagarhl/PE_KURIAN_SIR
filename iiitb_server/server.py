@@ -8,7 +8,7 @@ import csv
 import os
 from transformers import BlipProcessor, BlipForConditionalGeneration,T5Tokenizer, T5ForConditionalGeneration
 from analysis.donwload_video_from_client import video_photo_analyzer
-from extreme_emergency_alerts import alert_neighbours
+from extreme_emergency_alerts.alert_neighbours import alert_neighbours
 app = Flask(__name__)
 
 
@@ -87,9 +87,8 @@ def upload_data():
 #this uploads video here and based on this, further analysis will be done
 va = video_photo_analyzer(blip_model, blip_processor, t5_model, t5_tokenizer )
 app.add_url_rule('/upload_video', view_func=va.upload_video, methods=['POST'])
-app.add_url_rule('/upload_photo', view_func=va.upload_photo, methods=['POST'])
-
-app.add_url_rule('/emergency_alert_neighbours',view_func =  emergency_alert,methods=['POST'])
+app.add_url_rule('/upload_photo_for_summary', view_func=va.upload_photo, methods=['POST'])
+app.add_url_rule('/emergency_alert_neighbours',view_func =  alert_neighbours().truly_alert,methods=['POST'])
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

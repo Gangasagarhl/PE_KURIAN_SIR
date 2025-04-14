@@ -5,16 +5,24 @@ from datetime import datetime
 import requests
 #from image_descriptor import description  # BLIP model for image captioning
 from models_inferences.keras_model_inference import  predict_image
-from video_record_send_to_mail.index import execute_record
+#from video_record_send_to_mail.index import execute_record
 from send_emergency_video_to_sever_for_further_analysis.send_video_to_server import PassVideo
 from datetime import datetime
 
 
-# API Endpoints – adjust the host/port as needed.
 
+# API Endpoints – adjust the host/port as needed.
+USER_ID = "sag1"
+ADDRESS =  "VISVESVARAY@IIITB__\nHLG_SAGAR_\nPE_KURIAN_SIR"
 ROOT = "http://127.0.0.1:5000"
-IMAGE_UPLOAD_URL = ROOT+"/upload_photo"
+IMAGE_UPLOAD_URL = ROOT+"/upload_photo_for_summary"
 VIDEO_UPLOAD_URL = ROOT+"/upload_video"
+EMERGENCY_CALL_NEIGHBOURS =  ROOT+"/emergency_alert_neighbours"
+
+
+##this for making the emergeny alert to neightbours
+FRAME_CHECKING = None
+TOOK_FOR_TESTING = False  #if this is true thn it means then the thread is already created, which can be
 
 
 # Global variables for live streaming mode
@@ -26,41 +34,26 @@ stream_fps_interval = 0.1  # for ~10 fps streaming to the server
 
 #this is used to send the descirtion to server
 def inference_worker(frame, timestamp):
-    global live_streaming_mode, live_streaming_start_time
-    start_time = datetime.now()
-    caption = description(frame)
+    success, frame = cv2.imencode('.jpg', frame)
+    files = {'image': (f'{timestamp}__{USER_ID}', frame.tobytes(), 'image/jpeg')}
+    data={'id':USER_ID}
+    response = requests.post(IMAGE_UPLOAD_URL, files=files,data=data)
+    print("Image summariser response: ",response)
+
+
+
+#used to call teh neighbours after some seconds   
+def emergency_senders(video_name):
+    time.sleep(60)
+    global TOOK_FOR_TESTING,FRAME_CHECKING,EMERGENCY_CALL_NEIGHBOURS,USER_ID,ADDRESS
+    TOOK_FOR_TESTING = False
+    inference_result = predict_image(FRAME_CHECKING)
     
-    latency = datetime.now() - start_time
-    cv2.imwrite("captured_images/"+str(datetime.now())+"_output.jpg",frame)
-    
-    print("Inference latency:", latency)
-    print(f"[Captured] {timestamp} - Description: {caption}\n\n")
-
-    # Send the description to the server.
-    payload = {"timestamp": timestamp, "description": caption}
-    try:
-        requests.post(IMAGE_UPLOAD_URL, json=payload)
-    except Exception as e:
-        print("Error sending data:", e)
-    '''
-    # If the description contains "leopard" or "gun", trigger alert and live streaming.
-    if "leopard" in caption.lower() or "gun" in caption.lower():
-        control_link = "https://1e31-103-156-19-229.ngrok-free.app/live_video"  # update as needed
-        alert_message = f"Alert: {caption} detected at {timestamp}.\nView live stream: {control_link}"
-        try:
-            sid = send_whatsapp_alert(alert_message)
-            print("WhatsApp alert sent, SID:", sid)
-        except Exception as e:
-            print("Error sending WhatsApp alert:", e)
-        # Activate live streaming mode if not already active.
-        if not live_streaming_mode:
-            live_streaming_mode = True
-            live_streaming_start_time = time.time()
-            print("Live streaming mode activated.")
-            
-        '''
-
-
+    if inference_result == "BOTTLE":
+        PassVideo(url=EMERGENCY_CALL_NEIGHBOURS,video_path=video_name).send_emergency(id=USER_ID,address=ADDRESS)
+        print("Bottle detected now called all teh neighbours\n")
+        #call for sending alert to neightbours
+        
 
 def capture_from_camera():
     global live_streaming_mode, live_streaming_start_time, last_stream_sent_time
@@ -108,6 +101,15 @@ def capture_from_camera():
         else:
             # While recording, just write the frames without doing inference
             out.write(frame)
+
+            #this is used to check after 60 secs, if he bottle is seen then emergency true emergency
+            global FRAME_CHECKING, TOOK_FOR_TESTING
+            FRAME_CHECKING = frame
+            if not TOOK_FOR_TESTING:
+                TOOK_FOR_TESTING = True
+                threading.Thread(target=emergency_senders,args=(video_name)).start()
+
+            
             # Check if 15 seconds have passed since recording started
             if current_time - record_start_time >= capture_interval:
                 print("Recording stopped.")
@@ -116,8 +118,8 @@ def capture_from_camera():
 
                 #this to be changed
                 # Launch a thread to process/send the recorded video
-                passvideo  = PassVideo( url= VIDEO_UPLOAD_URL, video_path = f"{video_name}", video_id="hlgsagar1")
-                t1 = threading.Thread(target=passvideo.send)
+                passvideo  = PassVideo( url= VIDEO_UPLOAD_URL, video_path = f"{video_name}")
+                t1 = threading.Thread(target=passvideo.send,args=(USER_ID))
                 t1.start()
                 
                 # Optionally, update last_capture_time if you want to avoid immediate inference_worker trigger

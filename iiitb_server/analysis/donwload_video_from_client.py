@@ -75,7 +75,7 @@ class video_photo_analyzer:
             return "No image part in the request", 400
 
         file = requests.files['image']
-        id = requests.files['id']
+        id = requests.data['id']
         if file.filename == '':
             return "No selected file", 400
 
