@@ -1,18 +1,18 @@
-from analysis.image_descriptor import get_captions
+from analysis.image_descriptor import GetCaptions
 from analysis.summariser import Summarizer
 from send_notifications_mails.send_gmail_to_reciepient import gmail
 from send_notifications_mails.send_whatsapp_alerts import send_whatsapp_alert
 import threading
 import os
+global blip_model, blip_processor, t5_model, t5_tokenizer
 class make_it:
-    def __init__(self,video_path, output_folder,blip_model, blip_processor, t5_model, t5_tokenizer):
+    def __init__(self,video_path, output_folder):
         
-        self.captions =  get_captions(blip_model,blip_processor)
-        self.summary =  Summarizer(model=t5_model,tokenizer=t5_tokenizer)
+        self.captions =  GetCaptions()
+        self.summary =  Summarizer()
         self.video= video_path
         self.out = output_folder
-        self.t5_model = t5_model
-        self.t5_tokenizer = t5_tokenizer
+        
       
 
 

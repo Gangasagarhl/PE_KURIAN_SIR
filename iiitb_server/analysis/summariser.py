@@ -1,19 +1,23 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import os
+global blip_model, blip_processor, t5_model, t5_tokenizer
+from model_manage import t5_model, t5_tokenizer
 class Summarizer:
-    def __init__(self,model,tokenizer):
-        self.tokenizer = tokenizer
-        self.model = model
+    def __init__(self):
+        print("Summariser called\n\n")
+
+
+
 
     def summarize_chunk(self, text, max_length=150, min_length=30):
         input_text = "summarize: " + text.strip()
-        inputs = self.tokenizer.encode(
+        inputs = t5_tokenizer.encode(
             input_text,
             return_tensors="pt",
             max_length=512,
             truncation=True
         )
-        summary_ids = self.model.generate(
+        summary_ids = t5_model.generate(
             inputs,
             max_length=max_length,
             min_length=min_length,
@@ -21,7 +25,10 @@ class Summarizer:
             num_beams=4,
             early_stopping=True
         )
-        return self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        return t5_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+
+
 
     def refine_summarize(self, captions):
         assert isinstance(captions, list), "Captions should be a list of strings"

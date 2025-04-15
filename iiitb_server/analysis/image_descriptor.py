@@ -1,34 +1,29 @@
-from transformers import BlipProcessor, BlipForConditionalGeneration
-import warnings
-import torch
-import cv2
+# analysis/image_descriptor.py
 import os
-from PIL import Image  # Import PIL for image loading
-
+import cv2
+import warnings
+from PIL import Image  # PIL for image loading
 warnings.filterwarnings("ignore")
 
-class image_description:
-    def __init__(self,blip_model,blip_processor):
-        # Use local folder where the BLIP model is saved.
-        self.processor = blip_processor
-        self.model =blip_model
+# Import the globally loaded models from model_manager
+from model_manage import blip_model, blip_processor
 
-
-        print("\n\n*********BLIP MODEL DOWNLOADED*********\n\n")
+class ImageDescription:
+    def __init__(self):
+        print("\n\n*********IMAGE DESCRIPTION*********\n\n")
 
     def description(self, image_path):
         # Load the image from the provided file path
         image = Image.open(image_path).convert("RGB")
-        inputs = self.processor(images=image, return_tensors="pt")
-        
-        # Generate caption
-        output = self.model.generate(**inputs)
-        caption = self.processor.decode(output[0], skip_special_tokens=True)
+        # Use the globally loaded BLIP processor and model to generate a caption
+        inputs = blip_processor(images=image, return_tensors="pt")
+        output = blip_model.generate(**inputs)
+        caption = blip_processor.decode(output[0], skip_special_tokens=True)
         return caption
 
-class get_captions:
-    def __init__(self,blip_model,blip_processor):
-        self.describer = image_description(blip_model,blip_processor)
+class GetCaptions:
+    def __init__(self):
+        self.describer = ImageDescription()
         self.captions_list = []
 
     def extract_images_from_video_returns_list_of_captions(self, video_path, output_folder, fps_extract=1):
@@ -42,8 +37,8 @@ class get_captions:
 
         print(f"🎥 Video loaded. Duration: {duration:.2f}s, FPS: {video_fps}")
 
-        current_time = 0.0
         second = 0
+        current_time = 0.0
 
         while current_time < duration:
             print(f"\n🕒 Processing second: {second}")
@@ -61,7 +56,7 @@ class get_captions:
                 cv2.imwrite(filepath, frame)
                 print(f"✅ Saved {filename}")
 
-                # Call the description function on the saved image path
+                # Generate caption from the saved image
                 caption = self.describer.description(filepath)
                 self.captions_list.append(caption)
 
@@ -76,11 +71,12 @@ class get_captions:
         print("\n✅ All frames extracted, analyzed, and deleted.")
         return self.captions_list
 
+# For testing this module independently:
 if __name__ == "__main__":
-    obj = get_captions()
+    obj = GetCaptions()
     captions = obj.extract_images_from_video_returns_list_of_captions(
         video_path="videos/videoplayback.mp4", 
         output_folder="out", 
         fps_extract=2
     )
-    print(captions)
+    print("Extracted Captions:", captions)
