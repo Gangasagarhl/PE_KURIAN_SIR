@@ -4,10 +4,10 @@ import cv2
 from tensorflow import keras
 from tensorflow.keras.preprocessing.image import img_to_array
 # Load the model
-model = keras.models.load_model("model/model.keras")
+model = keras.models.load_model("raspberry_pi/model/strp.keras")
 
 # Labels
-labels = ["BOTTLE", "NO"]
+labels = ["NO", "SCI"]
 
 def predict_image(img):
     # Resize using OpenCV

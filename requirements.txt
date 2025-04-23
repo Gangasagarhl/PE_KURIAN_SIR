@@ -20,8 +20,10 @@ accelerate
 Pillow
 datasets
 scikit-learn
-opencv-python
-sentencepiece
 hf_xet
 pandas
 datetime
+Flask-SocketIO
+tensorflow-cpu
+python-socketio[client]
+albumentations

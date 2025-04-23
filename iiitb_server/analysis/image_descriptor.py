@@ -6,7 +6,7 @@ from PIL import Image  # PIL for image loading
 warnings.filterwarnings("ignore")
 
 # Import the globally loaded models from model_manager
-from model_manage import blip_model, blip_processor
+from iiitb_server.model_manage import blip_model, blip_processor
 
 class ImageDescription:
     def __init__(self):
@@ -21,6 +21,8 @@ class ImageDescription:
         caption = blip_processor.decode(output[0], skip_special_tokens=True)
         return caption
 
+
+
 class GetCaptions:
     def __init__(self):
         self.describer = ImageDescription()
@@ -29,6 +31,7 @@ class GetCaptions:
     def extract_images_from_video_returns_list_of_captions(self, video_path, output_folder, fps_extract=1):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
+        print("Extracting the image from the video\n")
 
         cap = cv2.VideoCapture(video_path)
         video_fps = cap.get(cv2.CAP_PROP_FPS)
@@ -68,10 +71,11 @@ class GetCaptions:
             current_time = second
 
         cap.release()
-        print("\n✅ All frames extracted, analyzed, and deleted.")
+        print("\n✅ All frames extracted, analyzed, and deleted.\nCaptions has been extracted\n")
         return self.captions_list
 
-# For testing this module independently:
+
+'''# For testing this module independently:
 if __name__ == "__main__":
     obj = GetCaptions()
     captions = obj.extract_images_from_video_returns_list_of_captions(
@@ -80,3 +84,4 @@ if __name__ == "__main__":
         fps_extract=2
     )
     print("Extracted Captions:", captions)
+'''

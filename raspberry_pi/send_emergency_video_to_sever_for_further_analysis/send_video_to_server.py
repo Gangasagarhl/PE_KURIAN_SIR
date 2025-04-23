@@ -12,13 +12,20 @@ class PassVideo:
         self.video_id = video_id
 
     def delete_video(self, video_path):
-        time.sleep(600)
+        time.sleep(400)
         try:
             os.remove(video_path)
             print(f"[INFO] Deleted: {video_path}")
         except Exception as e:
             print(f"[ERROR] Could not delete {video_path}: {e}")
 
+
+
+
+
+
+
+    #Summary generator
     def send(self, user_id):
         print("\n[INFO] Sending normal video\n")
         if not os.path.exists(self.video_path):
@@ -57,6 +64,17 @@ class PassVideo:
 
 
 
+
+
+
+
+
+
+
+
+
+
+    #emergency to messages
     def send_emergency(self, id, address,url):
         print(f"\n[EMERGENCY] Preparing to send: {self.video_path}\n")
         if not os.path.exists(self.video_path):

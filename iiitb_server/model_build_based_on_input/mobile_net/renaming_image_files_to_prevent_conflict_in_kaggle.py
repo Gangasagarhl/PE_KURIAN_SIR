@@ -19,6 +19,6 @@ def change_the_name_of_file(folder_path):
 
         
 if __name__ == "__main__": 
-    change_the_name_of_file("database/BOTTLE")
-    change_the_name_of_file("database/NO")
+    change_the_name_of_file("downloaded_images/BOTTLE")
+    #change_the_name_of_file("database/NO")
 

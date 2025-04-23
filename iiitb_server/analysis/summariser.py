@@ -1,13 +1,9 @@
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 import os
-global blip_model, blip_processor, t5_model, t5_tokenizer
-from model_manage import t5_model, t5_tokenizer
+from iiitb_server.model_manage import t5_model, t5_tokenizer
+
 class Summarizer:
     def __init__(self):
-        print("Summariser called\n\n")
-
-
-
+        print("Summarizer called\n\n")
 
     def summarize_chunk(self, text, max_length=150, min_length=30):
         input_text = "summarize: " + text.strip()
@@ -17,20 +13,40 @@ class Summarizer:
             max_length=512,
             truncation=True
         )
-        summary_ids = t5_model.generate(
-            inputs,
-            max_length=max_length,
-            min_length=min_length,
-            length_penalty=2.0,
-            num_beams=4,
-            early_stopping=True
-        )
+        summary_ids = t5_model.generate(inputs)
         return t5_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    
 
+    def map_reduce_summarize(self, captions):
 
+        assert isinstance(captions, list), "Captions should be a list of strings"
+        filtered = [c.strip() for c in captions if len(c.strip()) > 10]
 
+        if not filtered:
+            return "No valid captions to summarize."
 
+        # Map Step: Summarize each caption
+        print("\nIn Summaries generation\n")
+        intermediate_summaries = []
+        for i, caption in enumerate(filtered, start=1):
+            summary = self.summarize_chunk(caption)
+            intermediate_summaries.append(summary)
+            print(f"🔹 Intermediate ready {i}:\n", summary)
+
+        final_summary = self.refine_summarize(intermediate_summaries)
+
+        # Reduce Step: Combine all intermediate summaries and summarize again
+        combined_text = " ".join(intermediate_summaries)
+        final_summary1 = self.summarize_chunk(combined_text)
+        #print("\n\n\n\n\n\n**************** Final Map - Reduced Summary:*************\n", final_summary1)
+
+        final_summary+="Refined: \n"+final_summary+"\nMap-Reduce Summary:\n"+final_summary1
+
+        return final_summary
+
+    
     def refine_summarize(self, captions):
+        print("\n In refine summaries\n")
         assert isinstance(captions, list), "Captions should be a list of strings"
         # Filter out very short captions
         filtered = [c.strip() for c in captions if len(c.strip()) > 10]
@@ -45,9 +61,9 @@ class Summarizer:
             combined = f"""
             Existing Summary: {refined_summary}
             New Caption: {caption}
-            Update the summary if needed.
             """
             refined_summary = self.summarize_chunk(combined)
-            print(f"🔸 Refined after caption {i}:\n", refined_summary)
+            print(f"{i} Done:\n")
 
+        #print("\n\n*****Refined Summary*****\n",refined_summary)
         return refined_summary

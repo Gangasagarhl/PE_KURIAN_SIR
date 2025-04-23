@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask, request, jsonify
-from send_notifications_mails.send_gmail_to_reciepient import gmail
-from send_notifications_mails.send_whatsapp_alerts import send_whatsapp_alert
+from iiitb_server.send_notifications_mails.send_gmail_to_reciepient import gmail
+from iiitb_server.send_notifications_mails.send_whatsapp_alerts import send_whatsapp_alert
 from datetime import datetime
 import threading
 import pandas as pd
@@ -16,12 +16,12 @@ class alert_neighbours:
 
     def extract_emails(self, id):
         print("extract emails\n")
-        df = pd.read_csv('database/email.csv')
+        df = pd.read_csv('iiitb_server/database/email.csv')
         return df[df['id'] == id]['email'].tolist()
 
     def extract_numbers(self, id):
         print("extract numbers\n")
-        df = pd.read_csv('database/phone_numbers.csv')
+        df = pd.read_csv('iiitb_server/database/phone_numbers.csv')
         return df[df['id'] == id]['phone'].tolist()
 
     def extract_the_neighbours_info_from_database(self, id):
@@ -50,7 +50,7 @@ class alert_neighbours:
             print(f"\n\n***\n{id}\n{address}\n{video.filename} ***\n\n")
             #now = datetime.now().strftime("%Y%m%d%H%M%S")
             video_name = video.filename
-            video.save(str("extreme_emergency_alerts/")+video_name)
+            video.save(str("iiitb_server/extreme_emergency_alerts/")+video_name)
 
 
 
@@ -76,7 +76,7 @@ class alert_neighbours:
             #print("email: ",email,"\n")
             t = threading.Thread(
                 target=gmail(reciver_email=email, address=address).send_video_and_summary,
-                args=(f"extreme_emergency_alerts/{video_name}",f"Very Serious EMergency is detected at address\n{address}\n COnfirm through video and Start\n","SERIOUS CASED EMERGENCY START AS SOON AS POSSIBLE")
+                args=(f"iiitb_server/extreme_emergency_alerts/{video_name}",f"Very Serious EMergency is detected at address\n{address}\n COnfirm through video and Start\n","SERIOUS CASED EMERGENCY START AS SOON AS POSSIBLE")
             )
             t.start()
         print("alerting through mail\n")

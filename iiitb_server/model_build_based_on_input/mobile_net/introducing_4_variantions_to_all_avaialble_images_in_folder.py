@@ -100,7 +100,7 @@ class image_preperation:
                 continue
 
             self.transformation_on_images(image, folder_name=folder_path, count=count)
-            count += 1
+            count += 30000
 
         # Delete original images
         self.delete_files_from_list(folder_path=folder_path, file_list=li)

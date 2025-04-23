@@ -1,0 +1,12 @@
+Problem -1: OPENCV-python HEADLESS ISSUES
+
+    You need to reinstall OpenCV with GUI (GTK) support:
+
+    Install dependencies:
+
+    sudo apt update
+    sudo apt install libgtk2.0-dev pkg-config
+
+    pip uninstall opencv-python opencv-python-headless
+    pip install opencv-python
+

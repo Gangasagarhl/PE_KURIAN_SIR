@@ -4,40 +4,49 @@ import time
 import threading
 from datetime import datetime
 import requests
-from models_inferences.keras_model_inference import predict_image
-from send_emergency_video_to_sever_for_further_analysis.send_video_to_server import PassVideo
+import socketio  # ✅ SocketIO client
 
-# API Endpoints – adjust the host/port as needed.
+# Import local modules
+from raspberry_pi.models_inferences.keras_model_inference import predict_image
+from raspberry_pi.send_emergency_video_to_sever_for_further_analysis.send_video_to_server import PassVideo
 
+# ─── SocketIO Setup ──────────────────────────────────────────────
+sio = socketio.Client()
+
+@sio.event
+def connect():
+    print("✅ Connected to the server.")
+
+@sio.event
+def disconnect():
+    print("❌ Disconnected from the server.")
+
+try:
+    sio.connect("http://127.0.0.1:5000")  # 🔁 Use actual server IP if remote
+except Exception as e:
+    print("❌ SocketIO connection failed:", e)
+
+# ─── Configuration ───────────────────────────────────────────────
 USER_ID = "sag1"
 ADDRESS = "VISVESVARAY@IIITB__\nHLG_SAGAR_\nPE_KURIAN_SIR"
 ROOT = "http://127.0.0.1:5000"
-IMAGE_UPLOAD_URL = ROOT + f"/upload_photo_for_summary?sid={USER_ID}"
-VIDEO_UPLOAD_URL = ROOT + f"/upload_video?sid={USER_ID}"
+IMAGE_UPLOAD_URL = ROOT + "/upload_photo_for_summary"
+VIDEO_UPLOAD_URL = ROOT + "/upload_video"
 EMERGENCY_CALL_NEIGHBOURS = ROOT + "/emergency_alert_neighbours"
-
-
-COUNT_FOR_EMERGENCY = 0 #if more than 3 times it is counted in 
-#2 minutes then it will trigger the emergency
-CURRENT_EMERGENCY_TIME=0
+COUNT_FOR_EMERGENCY = 0
+CURRENT_EMERGENCY_TIME = 0
 EMERGENCY_VIDEO_PATH = None
+VIDEO_RESOURCE_NAME = USER_ID
 
-# Globals
 FRAME_CHECKING = None
 TOOK_FOR_TESTING = False
 capture_interval = 15  # seconds
 fps = 20
 
-# Video output directory
 video_output_dir = "raspberry_pi/send_emergency_video_to_sever_for_further_analysis"
 os.makedirs(video_output_dir, exist_ok=True)
 
-
-
-##the image is sent to the server for making the summarisation
-
-
-
+# ─── Workers ─────────────────────────────────────────────────────
 def inference_worker(frame, timestamp):
     success, frame_encoded = cv2.imencode('.jpg', frame)
     if not success:
@@ -53,28 +62,13 @@ def inference_worker(frame, timestamp):
     except Exception as e:
         print("[ERROR] Failed to send image:", e)
 
-
-
-    
-"""
 def emergency_senders(video_path):
-    print("\n\n\n\n******************emergencyyyyyyyy****************\n\n")
-    PassVideo(url=EMERGENCY_CALL_NEIGHBOURS, video_path=video_path).send_emergency(id=USER_ID, address=ADDRESS)
-    print("[ALERT] BOTTLE detected – Emergency alert sent to neighbours.")
-"""
-    
-def emergency_senders(video_path):
-    #print("\n********** EMERGENCY ALERT **********\n\n\n")
-    #rint("\n********** EMERGENCY ALERT **********\n")
-
     PassVideo(url=EMERGENCY_CALL_NEIGHBOURS, video_path=video_path).send_emergency(
-        id=USER_ID, address=ADDRESS,url=EMERGENCY_CALL_NEIGHBOURS
+        id=USER_ID, address=ADDRESS, url=EMERGENCY_CALL_NEIGHBOURS
     )
-    print("[ALERT] BOTTLE detected – Emergency alert sent to neighbours.")
+    print("[ALERT] SCISSORS detected – Emergency alert sent to neighbours.")
 
-    
-        
-
+# ─── Main Capture Function ───────────────────────────────────────
 def capture_from_camera():
     global FRAME_CHECKING, TOOK_FOR_TESTING
 
@@ -92,11 +86,10 @@ def capture_from_camera():
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     print("[INFO] Camera started successfully...")
-    
+
     bottle_count = 0
     bottle_time_marked = None
     emergency_video_path = None
-    
 
     while True:
         ret, frame = cap.read()
@@ -106,47 +99,43 @@ def capture_from_camera():
 
         current_time = time.time()
 
-        # Display red "REC" text if recording
         if recording:
             cv2.putText(frame, "REC", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)
 
-        # Show the frame
         cv2.imshow("Live Camera Feed", frame)
 
         if not recording:
             result = predict_image(frame)
 
-
-            if result == "BOTTLE":
+            if result == "SCI":
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 video_name = f"recording_{timestamp}.avi"
                 video_path = os.path.join(video_output_dir, video_name)
 
-                print("[INFO] BOTTLE detected – starting recording...")
+                print("[INFO] SCISSORS detected – starting recording...")
                 recording = True
                 record_start_time = current_time
 
-                if bottle_count<=0:
+                if bottle_count <= 0:
                     emergency_video_path = video_path
-                    bottle_time_marked =  time.time()
-                    print("Bottle marked at 0: ",bottle_time_marked,"\nvideo path: ", video_path)
-                
+                    bottle_time_marked = time.time()
+                    print("SCISSORS marked at 0:", bottle_time_marked, "\nvideo path:", video_path)
 
                 if bottle_count > 4:
-                    elapsed =  int(time.time() - bottle_time_marked)
-                    print("elapsed time\n",elapsed)
+                    elapsed = int(time.time() - bottle_time_marked)
+                    print("elapsed time:", elapsed)
 
                     if elapsed < 300:
-                        print("\n\nEmergency vidoe path: ", emergency_video_path)
+                        print("\n\nEmergency video path:", emergency_video_path)
                         emergency_senders(emergency_video_path)
-                        elapsed=0
+                        elapsed = 0
 
                     bottle_count = -1
-                    
-                bottle_count+=1
-                print("\n\nBottle count:  ",bottle_count)
-                elapsed =  int(time.time() - bottle_time_marked)
-                print("elapsed time\n",elapsed)
+
+                bottle_count += 1
+                elapsed = int(time.time() - bottle_time_marked)
+                print("\n\nSCISSORS count:", bottle_count)
+                print("elapsed time:", elapsed)
 
                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
                 out = cv2.VideoWriter(video_path, fourcc, fps, (frame_width, frame_height))
@@ -169,7 +158,6 @@ def capture_from_camera():
             threading.Thread(target=inference_worker, args=(frame.copy(), timestamp)).start()
             last_capture_time = current_time
 
-        # Press 'q' to quit the feed
         if cv2.waitKey(1) & 0xFF == ord('q'):
             print("[INFO] 'q' pressed – Exiting camera feed.")
             break
@@ -180,16 +168,15 @@ def capture_from_camera():
     cv2.destroyAllWindows()
     print("[INFO] Camera and windows released.")
 
-
-
+# ─── Test Emergency Call ─────────────────────────────────────────
 def check_by_calling_emergency():
-    video_output_dir = "send_emergency_video_to_sever_for_further_analysis"
-    video_path = "recording_20250415_042426.avi"
-    video_path = os.path.join(video_output_dir,video_path)
-    threading.Thread(target=emergency_senders,args=(video_path,)).start()
-    
+    video_path = os.path.join(video_output_dir, "recording_20250415_042426.avi")
+    threading.Thread(target=emergency_senders, args=(video_path,)).start()
 
-
-
+# ─── Main Entry ──────────────────────────────────────────────────
 if __name__ == "__main__":
-    capture_from_camera()
+    try:
+        capture_from_camera()
+    finally:
+        if sio.connected:
+            sio.disconnect()

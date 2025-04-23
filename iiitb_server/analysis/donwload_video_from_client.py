@@ -3,15 +3,14 @@ import threading
 import os
 import csv
 import datetime
-from analysis.index import make_it
-from analysis.image_descriptor import ImageDescription
-global blip_model, blip_processor, t5_model, t5_tokenizer
+from iiitb_server.analysis.index import make_it
+from iiitb_server.analysis.image_descriptor import ImageDescription
 class video_photo_analyzer:
     def __init__(self, ):
         
-        self.database = "database"
-        self.photo_temp_dir = "photo_temp"
-        self.video_dir = "videos"
+        self.database = "iiitb_server/analysis/database"
+        self.photo_temp_dir = "iiitb_server/analysis/photo_temp"
+        self.video_dir = "iiitb_server/analysis/videos"
 
         os.makedirs(self.database, exist_ok=True)
         os.makedirs(self.photo_temp_dir, exist_ok=True)
@@ -43,17 +42,14 @@ class video_photo_analyzer:
             video.save(save_path)
             print(f"✅ Received and saved video: {save_path}")
 
-            result = make_it(
-                save_path,
-                output_folder="out",
-            )
+            
 
             print("🔄 Starting thread to send notifications...")
-            thread = threading.Thread(
-                target=result.send_to_recepeints,
+            thread = threading.Thread(target=make_it(save_path,output_folder="iiitb_server/analysis/out").send_to_recepeints,
                 args=("hlgsagar.2@gmail.com", 8105114611)
             )
             thread.start()
+            print("\nThread called for making the vidoe summarisatin \n")
 
         return jsonify({'message': 'Video uploaded successfully', 'filename': video.filename}), 200
 
