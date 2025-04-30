@@ -34,5 +34,6 @@ GitHub: [https://github.com/Gangasagarhl/PE_KURIAN_SIR/](https://github.com/Gang
      myenv\Scripts\activate
      ```
 4. **Run Scripts**
+   - pip install -r reuirements.txt
    - python server.py
    - python client.py
