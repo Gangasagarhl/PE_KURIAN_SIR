@@ -98,6 +98,7 @@ def capture_from_camera():
             break
 
         current_time = time.time()
+        time.sleep(0.005)
 
         if recording:
             cv2.putText(frame, "REC", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)

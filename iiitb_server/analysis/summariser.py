@@ -1,5 +1,6 @@
 import os
 from iiitb_server.model_manage import t5_model, t5_tokenizer
+from iiitb_server.analysis.summary_to_a_file import write_to_file
 
 class Summarizer:
     def __init__(self):
@@ -43,6 +44,7 @@ class Summarizer:
         final_summary ="Refined: \n\n"+final_summary+"\n\n\nMap-Reduce Summary:\n"+final_summary1+"\n\n"
 
         #self.summarize_chunk()
+        write_to_file().write(path = "Summary.txt", data=final_summary)
 
         return final_summary
 
