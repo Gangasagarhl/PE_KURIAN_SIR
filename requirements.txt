@@ -1,3 +1,10 @@
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+
+# Pin the +cpu builds explicitly:
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
+torchaudio==2.0.2+cpu
+
 numpy==1.26.4
 python-dotenv
 openai

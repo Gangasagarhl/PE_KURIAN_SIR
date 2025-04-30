@@ -5,7 +5,7 @@ class Summarizer:
     def __init__(self):
         print("Summarizer called\n\n")
 
-    def summarize_chunk(self, text, max_length=150, min_length=30):
+    def summarize_chunk(self, text, max_length=150, min_length=10):
         input_text = "summarize: " + text.strip()
         inputs = t5_tokenizer.encode(
             input_text,
@@ -40,7 +40,9 @@ class Summarizer:
         final_summary1 = self.summarize_chunk(combined_text)
         #print("\n\n\n\n\n\n**************** Final Map - Reduced Summary:*************\n", final_summary1)
 
-        final_summary+="Refined: \n"+final_summary+"\nMap-Reduce Summary:\n"+final_summary1
+        final_summary ="Refined: \n\n"+final_summary+"\n\n\nMap-Reduce Summary:\n"+final_summary1+"\n\n"
+
+        #self.summarize_chunk()
 
         return final_summary
 

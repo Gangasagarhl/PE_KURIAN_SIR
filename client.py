@@ -66,7 +66,7 @@ def emergency_senders(video_path):
     PassVideo(url=EMERGENCY_CALL_NEIGHBOURS, video_path=video_path).send_emergency(
         id=USER_ID, address=ADDRESS, url=EMERGENCY_CALL_NEIGHBOURS
     )
-    print("[ALERT] SCISSORS detected – Emergency alert sent to neighbours.")
+    print("[ALERT] STREPTILS detected – Emergency alert sent to neighbours.")
 
 # ─── Main Capture Function ───────────────────────────────────────
 def capture_from_camera():
@@ -112,14 +112,14 @@ def capture_from_camera():
                 video_name = f"recording_{timestamp}.avi"
                 video_path = os.path.join(video_output_dir, video_name)
 
-                print("[INFO] SCISSORS detected – starting recording...")
+                print("[INFO] STREPTILS detected – starting recording...")
                 recording = True
                 record_start_time = current_time
 
                 if bottle_count <= 0:
                     emergency_video_path = video_path
                     bottle_time_marked = time.time()
-                    print("SCISSORS marked at 0:", bottle_time_marked, "\nvideo path:", video_path)
+                    print("STREPTILS marked at 0:", bottle_time_marked, "\nvideo path:", video_path)
 
                 if bottle_count > 4:
                     elapsed = int(time.time() - bottle_time_marked)
@@ -134,7 +134,7 @@ def capture_from_camera():
 
                 bottle_count += 1
                 elapsed = int(time.time() - bottle_time_marked)
-                print("\n\nSCISSORS count:", bottle_count)
+                print("\n\nSTREPTILS count:", bottle_count)
                 print("elapsed time:", elapsed)
 
                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -146,7 +146,6 @@ def capture_from_camera():
                 print("[INFO] Recording complete.")
                 recording = False
                 out.release()
-
                 video_path = os.path.join(video_output_dir, video_name)
                 threading.Thread(
                     target=PassVideo(url=VIDEO_UPLOAD_URL, video_path=video_path).send,
