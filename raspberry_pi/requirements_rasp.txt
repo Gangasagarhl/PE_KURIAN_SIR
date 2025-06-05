@@ -1,0 +1,8 @@
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python packages
+pip3 install tflite-runtime opencv-python numpy pillow
+
+# If tflite-runtime doesn't work, try:
+pip3 install tensorflow-lite

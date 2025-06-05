@@ -1,16 +1,13 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-# Define Local Path
-class model_load:
+class ModelLoad:
     def model_load(self):
-        local_model_path = "./local_models/t5-large"
+        # Specify the model name from Hugging Face Hub
+        model_name = "t5-medium"
         
+        # Load Model & Tokenizer from Hugging Face Hub
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
 
-        # Load Model & Tokenizer from Local Storage
-        tokenizer = T5Tokenizer.from_pretrained(local_model_path)
-        model = T5ForConditionalGeneration.from_pretrained(local_model_path)
-
-        #print("Model loaded from local directory successfully!")
+        #print("Model loaded from Hugging Face Hub successfully!")
         return tokenizer, model
-
-
